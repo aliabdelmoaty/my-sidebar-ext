@@ -218,6 +218,18 @@ let contextMenu = null;
 let editingSiteId = null; // Track if we're editing a site
 let currentSiteUrl = null; // Track currently loaded site URL
 
+// Drag and drop state
+let draggedItem = null;
+let draggedIndex = -1;
+let dropIndicator = null;
+
+// Auto-hibernate state
+const HIBERNATE_TIMEOUT = 5 * 60 * 1000; // 5 minutes of inactivity
+let hibernateTimer = null;
+let isHibernated = false;
+let lastActivityTime = Date.now();
+let hibernatedUrl = null; // Store URL when hibernated
+
 // DOM Elements
 const iconBar = document.getElementById('iconBar');
 const webFrame = document.getElementById('webFrame');
@@ -230,12 +242,9 @@ const btnSave = document.getElementById('btnSave');
 const siteName = document.getElementById('siteName');
 const siteUrl = document.getElementById('siteUrl');
 const colorPicker = document.getElementById('colorPicker');
-const iframeToolbar = document.getElementById('iframeToolbar');
-const loadingIndicator = document.getElementById('loadingIndicator');
-const btnRefresh = document.getElementById('btnRefresh');
-const btnOpenTab = document.getElementById('btnOpenTab');
 const importFile = document.getElementById('importFile');
 const webPanel = document.querySelector('.web-panel');
+const iframeWrapper = document.getElementById('iframeWrapper');
 
 /**
  * Load sites from storage
@@ -276,24 +285,38 @@ function generateId() {
 /**
  * Create icon button for a site
  */
-function createIconButton(site) {
+function createIconButton(site, index) {
   const button = document.createElement('button');
   button.className = 'icon-btn';
   button.setAttribute('data-tooltip', site.name);
   button.setAttribute('data-url', site.url);
   button.setAttribute('data-id', site.id);
+  button.setAttribute('data-index', index);
+  button.setAttribute('draggable', 'true');
   
   // Load favicon asynchronously
   loadFaviconForButton(button, site);
   
-  // Click handler - load site
-  button.addEventListener('click', () => loadSite(site, button));
+  // Click handler - load site (only if not dragging)
+  button.addEventListener('click', (e) => {
+    // Prevent click during drag
+    if (draggedItem) return;
+    loadSite(site, button);
+  });
   
   // Right-click handler - show context menu
   button.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     showContextMenu(e, site);
   });
+  
+  // Drag and drop handlers
+  button.addEventListener('dragstart', handleDragStart);
+  button.addEventListener('dragend', handleDragEnd);
+  button.addEventListener('dragover', handleDragOver);
+  button.addEventListener('dragenter', handleDragEnter);
+  button.addEventListener('dragleave', handleDragLeave);
+  button.addEventListener('drop', handleDrop);
   
   return button;
 }
@@ -361,33 +384,49 @@ function loadSite(site, button) {
   button.classList.add('active');
   activeButton = button;
   
-  // Hide welcome, show iframe and toolbar
+  // Hide welcome
   welcome.classList.add('hidden');
-  iframeToolbar.classList.remove('hidden');
-  webPanel.classList.add('has-toolbar');
-  
-  // Show loading indicator
-  showLoading();
   
   // Store current URL for refresh/open in tab
   currentSiteUrl = site.url;
+  
+  // Save last visited site
+  saveLastSite(site.id);
   
   // Load the site
   webFrame.src = site.url;
 }
 
 /**
- * Show loading indicator
+ * Save last visited site ID to storage
  */
-function showLoading() {
-  loadingIndicator.classList.add('show');
+async function saveLastSite(siteId) {
+  try {
+    await browser.storage.local.set({ lastSiteId: siteId });
+  } catch (e) {
+    console.log('Could not save last site');
+  }
 }
 
 /**
- * Hide loading indicator
+ * Load last visited site on startup
  */
-function hideLoading() {
-  loadingIndicator.classList.remove('show');
+async function loadLastSite() {
+  try {
+    const result = await browser.storage.local.get('lastSiteId');
+    if (result.lastSiteId) {
+      const site = sites.find(s => s.id === result.lastSiteId);
+      if (site) {
+        // Find the button for this site
+        const button = document.querySelector(`[data-id="${site.id}"]`);
+        if (button) {
+          loadSite(site, button);
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Could not load last site');
+  }
 }
 
 /**
@@ -395,7 +434,6 @@ function hideLoading() {
  */
 function refreshIframe() {
   if (currentSiteUrl) {
-    showLoading();
     webFrame.src = currentSiteUrl;
   }
 }
@@ -407,6 +445,292 @@ function openInNewTab() {
   if (currentSiteUrl) {
     browser.tabs.create({ url: currentSiteUrl });
   }
+}
+
+// ===================
+// DRAG AND DROP
+// ===================
+
+/**
+ * Handle drag start
+ */
+function handleDragStart(e) {
+  // Get the button element (might be triggered from child)
+  const button = e.target.closest('.icon-btn');
+  if (!button) return;
+  
+  draggedItem = button;
+  draggedIndex = parseInt(button.dataset.index);
+  
+  // Set drag data
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', draggedIndex.toString());
+  
+  // Set drag image to the button
+  e.dataTransfer.setDragImage(button, button.offsetWidth / 2, button.offsetHeight / 2);
+  
+  // Add dragging class after a small delay (for visual feedback)
+  requestAnimationFrame(() => {
+    if (draggedItem) {
+      draggedItem.classList.add('dragging');
+    }
+  });
+}
+
+/**
+ * Handle drag end
+ */
+function handleDragEnd(e) {
+  if (draggedItem) {
+    draggedItem.classList.remove('dragging');
+  }
+  draggedItem = null;
+  draggedIndex = -1;
+  
+  // Remove all drag-over classes from all buttons
+  document.querySelectorAll('.icon-btn').forEach(btn => {
+    btn.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
+  });
+}
+
+/**
+ * Handle drag over
+ */
+function handleDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  
+  const target = e.target.closest('.icon-btn');
+  if (!target || !draggedItem || target === draggedItem) return;
+  
+  // Clear previous indicators from other buttons
+  document.querySelectorAll('.icon-btn').forEach(btn => {
+    if (btn !== target) {
+      btn.classList.remove('drag-over-top', 'drag-over-bottom');
+    }
+  });
+  
+  // Determine if dropping above or below
+  const rect = target.getBoundingClientRect();
+  const midY = rect.top + rect.height / 2;
+  const isAbove = e.clientY < midY;
+  
+  // Update visual indicator
+  target.classList.remove('drag-over-top', 'drag-over-bottom');
+  target.classList.add(isAbove ? 'drag-over-top' : 'drag-over-bottom');
+}
+
+/**
+ * Handle drag enter
+ */
+function handleDragEnter(e) {
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+/**
+ * Handle drag leave
+ */
+function handleDragLeave(e) {
+  const target = e.target.closest('.icon-btn');
+  if (!target) return;
+  
+  // Check if we're actually leaving the button (not just moving to a child)
+  const relatedTarget = e.relatedTarget;
+  if (relatedTarget && target.contains(relatedTarget)) {
+    return; // Still inside the button
+  }
+  
+  target.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
+}
+
+/**
+ * Handle drop
+ */
+async function handleDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const target = e.target.closest('.icon-btn');
+  if (!target || !draggedItem || target === draggedItem) return;
+  
+  const targetIndex = parseInt(target.dataset.index);
+  
+  // Determine if dropping above or below
+  const rect = target.getBoundingClientRect();
+  const midY = rect.top + rect.height / 2;
+  const isAbove = e.clientY < midY;
+  
+  // Calculate new index
+  let newIndex = isAbove ? targetIndex : targetIndex + 1;
+  if (draggedIndex < targetIndex) {
+    newIndex--;
+  }
+  
+  // Ensure newIndex is valid
+  newIndex = Math.max(0, Math.min(newIndex, sites.length - 1));
+  
+  // Reorder the sites array
+  if (draggedIndex !== newIndex && draggedIndex >= 0 && draggedIndex < sites.length) {
+    const [movedSite] = sites.splice(draggedIndex, 1);
+    sites.splice(newIndex, 0, movedSite);
+    
+    // Save and re-render
+    await saveSites();
+    renderIcons();
+    
+    // Restore active state if needed
+    if (activeButton) {
+      const activeId = activeButton.dataset.id;
+      const newActiveBtn = document.querySelector(`[data-id="${activeId}"]`);
+      if (newActiveBtn) {
+        newActiveBtn.classList.add('active');
+        activeButton = newActiveBtn;
+      }
+    }
+  }
+  
+  // Cleanup all buttons
+  document.querySelectorAll('.icon-btn').forEach(btn => {
+    btn.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
+  });
+}
+
+// ===================
+// AUTO-HIBERNATE
+// ===================
+
+/**
+ * Reset activity timer (called on user interaction)
+ */
+function resetActivityTimer() {
+  lastActivityTime = Date.now();
+  
+  // If hibernated, wake up
+  if (isHibernated) {
+    wakeFromHibernate();
+  }
+  
+  // Clear existing timer
+  if (hibernateTimer) {
+    clearTimeout(hibernateTimer);
+  }
+  
+  // Set new timer
+  hibernateTimer = setTimeout(checkHibernate, HIBERNATE_TIMEOUT);
+}
+
+/**
+ * Check if should hibernate
+ */
+function checkHibernate() {
+  const inactiveTime = Date.now() - lastActivityTime;
+  
+  // Only hibernate if iframe has a loaded site and user is inactive
+  if (inactiveTime >= HIBERNATE_TIMEOUT && currentSiteUrl && !isHibernated) {
+    hibernate();
+  }
+}
+
+/**
+ * Hibernate the iframe to save memory
+ */
+function hibernate() {
+  if (isHibernated || !currentSiteUrl) return;
+  
+  isHibernated = true;
+  hibernatedUrl = currentSiteUrl;
+  
+  // Unload iframe to free memory
+  webFrame.src = 'about:blank';
+  
+  // Show hibernate overlay
+  showHibernateOverlay();
+  
+  console.log('Sidebar: Hibernated to save memory');
+}
+
+/**
+ * Wake from hibernate
+ */
+function wakeFromHibernate() {
+  if (!isHibernated) return;
+  
+  isHibernated = false;
+  
+  // Hide hibernate overlay
+  hideHibernateOverlay();
+  
+  // Reload the site
+  if (hibernatedUrl) {
+    webFrame.src = hibernatedUrl;
+    hibernatedUrl = null;
+  }
+  
+  console.log('Sidebar: Woke from hibernate');
+}
+
+/**
+ * Show hibernate overlay
+ */
+function showHibernateOverlay() {
+  let overlay = document.getElementById('hibernateOverlay');
+  
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'hibernateOverlay';
+    overlay.className = 'hibernate-overlay';
+    overlay.innerHTML = `
+      <div class="hibernate-content">
+        <div class="hibernate-icon">💤</div>
+        <p class="hibernate-title">في وضع السكون</p>
+        <p class="hibernate-subtitle">لتوفير الذاكرة</p>
+        <button class="hibernate-wake-btn">اضغط للتنشيط</button>
+      </div>
+    `;
+    
+    // Wake on click
+    overlay.addEventListener('click', () => {
+      resetActivityTimer();
+    });
+    
+    iframeWrapper.appendChild(overlay);
+  }
+  
+  overlay.classList.add('show');
+}
+
+/**
+ * Hide hibernate overlay
+ */
+function hideHibernateOverlay() {
+  const overlay = document.getElementById('hibernateOverlay');
+  if (overlay) {
+    overlay.classList.remove('show');
+  }
+}
+
+/**
+ * Setup activity listeners
+ */
+function setupActivityListeners() {
+  // Listen for user activity on the sidebar
+  const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+  
+  activityEvents.forEach(event => {
+    document.addEventListener(event, resetActivityTimer, { passive: true });
+  });
+  
+  // Also listen for visibility change
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      resetActivityTimer();
+    }
+  });
+  
+  // Start the initial timer
+  resetActivityTimer();
 }
 
 // ===================
@@ -505,8 +829,8 @@ function renderIcons() {
   iconBar.innerHTML = '';
   
   // Add site icons
-  sites.forEach(site => {
-    const button = createIconButton(site);
+  sites.forEach((site, index) => {
+    const button = createIconButton(site, index);
     iconBar.appendChild(button);
   });
   
@@ -518,6 +842,12 @@ function renderIcons() {
   // Add the + button
   const addBtn = createAddButton();
   iconBar.appendChild(addBtn);
+  
+  // Add toolbar buttons (refresh & open in tab)
+  const refreshBtn = createUtilityButton('↻', 'تحديث', refreshIframe);
+  const openTabBtn = createUtilityButton('↗', 'فتح في تاب جديد', openInNewTab);
+  iconBar.appendChild(refreshBtn);
+  iconBar.appendChild(openTabBtn);
   
   // Add import/export buttons
   const exportBtn = createUtilityButton('📤', 'تصدير المواقع', exportSites);
@@ -667,8 +997,6 @@ function showContextMenu(e, site) {
     if (activeButton && activeButton.dataset.id === site.id) {
       webFrame.src = 'about:blank';
       welcome.classList.remove('hidden');
-      iframeToolbar.classList.add('hidden');
-      webPanel.classList.remove('has-toolbar');
       activeButton = null;
       currentSiteUrl = null;
     }
@@ -706,6 +1034,9 @@ async function init() {
   await loadSites();
   renderIcons();
   
+  // Load last visited site automatically
+  await loadLastSite();
+  
   // Modal event listeners
   modalClose.addEventListener('click', closeModal);
   btnCancel.addEventListener('click', closeModal);
@@ -732,21 +1063,11 @@ async function init() {
   // Initial color selection
   updateColorSelection();
   
-  // Iframe toolbar event listeners
-  btnRefresh.addEventListener('click', refreshIframe);
-  btnOpenTab.addEventListener('click', openInNewTab);
-  
-  // Iframe load events
-  webFrame.addEventListener('load', () => {
-    hideLoading();
-  });
-  
-  webFrame.addEventListener('error', () => {
-    hideLoading();
-  });
-  
   // Import file handler
   importFile.addEventListener('change', handleFileImport);
+  
+  // Setup auto-hibernate
+  setupActivityListeners();
 }
 
 // Initialize when DOM is ready

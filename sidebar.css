@@ -2,15 +2,23 @@
 :root {
   --bg-primary: #1a1a2e;
   --bg-secondary: #16213e;
-  --bg-icon-bar: #0f0f1a;
+  --bg-icon-bar: rgba(15, 15, 26, 0.85);
+  --bg-glass: rgba(22, 33, 62, 0.7);
   --accent-color: #4a9eff;
+  --accent-glow: rgba(74, 158, 255, 0.4);
   --text-primary: #e4e4e7;
   --text-secondary: #9ca3af;
   --icon-size: 20px;
-  --icon-bar-width: 36px;
-  --hover-bg: rgba(74, 158, 255, 0.15);
-  --active-bg: rgba(74, 158, 255, 0.25);
-  --border-color: rgba(255, 255, 255, 0.08);
+  --icon-bar-width: 38px;
+  --hover-bg: rgba(74, 158, 255, 0.18);
+  --active-bg: rgba(74, 158, 255, 0.28);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Reset */
@@ -37,19 +45,22 @@ html, body {
   overflow: visible;
 }
 
-/* Vertical Icon Bar */
+/* Vertical Icon Bar - Glassmorphism */
 .icon-bar {
   width: var(--icon-bar-width);
   min-width: var(--icon-bar-width);
   background: var(--bg-icon-bar);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 0;
-  gap: 4px;
+  padding: 10px 0;
+  gap: 6px;
   overflow-y: auto;
   overflow-x: visible;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.2);
 }
 
 /* Hide scrollbar but keep functionality */
@@ -58,41 +69,58 @@ html, body {
   display: none;
 }
 
-/* Icon Button */
+/* Icon Button - Enhanced */
 .icon-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   position: relative;
   flex-shrink: 0;
 }
 
 .icon-btn:hover {
   background: var(--hover-bg);
-  transform: scale(1.08);
+  border-color: var(--border-color);
+  transform: scale(1.12) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.15);
+}
+
+.icon-btn:active {
+  transform: scale(1.05);
+  transition: transform 0.1s;
 }
 
 .icon-btn.active {
   background: var(--active-bg);
+  border-color: rgba(74, 158, 255, 0.3);
+  box-shadow: 0 0 16px var(--accent-glow),
+              inset 0 0 8px rgba(74, 158, 255, 0.1);
 }
 
 .icon-btn.active::before {
   content: '';
   position: absolute;
-  left: -4px;
+  left: -5px;
   top: 50%;
   transform: translateY(-50%);
   width: 3px;
-  height: 20px;
-  background: var(--accent-color);
-  border-radius: 0 2px 2px 0;
+  height: 18px;
+  background: linear-gradient(180deg, var(--accent-color), #1a73e8);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px var(--accent-glow);
+  animation: indicator-pulse 2s ease-in-out infinite;
+}
+
+@keyframes indicator-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .icon-btn img {
@@ -118,29 +146,33 @@ html, body {
   color: white;
 }
 
-/* Tooltip */
+/* Tooltip - Enhanced Glassmorphism */
 .icon-btn::after {
   content: attr(data-tooltip);
   position: fixed;
-  left: calc(var(--icon-bar-width) + 8px);
-  background: var(--bg-secondary);
+  left: calc(var(--icon-bar-width) + 10px);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text-primary);
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transform: translateX(-8px);
+  transition: all var(--transition-fast);
   z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color);
   pointer-events: none;
 }
 
 .icon-btn:hover::after {
   opacity: 1;
   visibility: visible;
+  transform: translateX(0);
 }
 
 /* Separator */
@@ -152,20 +184,21 @@ html, body {
   flex-shrink: 0;
 }
 
-/* Add Button */
+/* Add Button - Enhanced */
 .add-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
   background: transparent;
-  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border: 2px dashed rgba(255, 255, 255, 0.15);
   color: var(--text-secondary);
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 300;
   margin-top: auto;
   flex-shrink: 0;
   position: relative;
@@ -173,34 +206,44 @@ html, body {
 
 .add-btn:hover {
   border-color: var(--accent-color);
+  border-style: solid;
   color: var(--accent-color);
   background: var(--hover-bg);
-  transform: scale(1.08);
+  transform: scale(1.12) translateY(-1px);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+.add-btn:active {
+  transform: scale(1.05);
 }
 
 /* Add Button Tooltip */
 .add-btn::after {
   content: attr(data-tooltip);
   position: fixed;
-  left: calc(var(--icon-bar-width) + 8px);
-  background: var(--bg-secondary);
+  left: calc(var(--icon-bar-width) + 10px);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text-primary);
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transform: translateX(-8px);
+  transition: all var(--transition-fast);
   z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color);
   pointer-events: none;
 }
 
 .add-btn:hover::after {
   opacity: 1;
   visibility: visible;
+  transform: translateX(0);
 }
 
 /* Web Panel */
@@ -218,7 +261,7 @@ html, body {
   background: #fff;
 }
 
-/* Welcome Screen */
+/* Welcome Screen - Enhanced */
 .welcome {
   position: absolute;
   top: 0;
@@ -229,7 +272,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
   color: var(--text-secondary);
   gap: 16px;
 }
@@ -239,53 +282,68 @@ html, body {
 }
 
 .welcome-icon {
-  font-size: 48px;
-  opacity: 0.6;
+  font-size: 56px;
+  opacity: 0.7;
+  animation: welcome-float 3s ease-in-out infinite;
+}
+
+@keyframes welcome-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
 
 .welcome p {
   font-size: 14px;
-  opacity: 0.8;
+  opacity: 0.7;
+  font-weight: 500;
 }
 
-/* Modal Overlay */
+/* Modal Overlay - Enhanced */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.6);
   display: none;
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .modal-overlay.show {
   display: flex;
+  animation: overlayIn 0.2s ease;
 }
 
-/* Modal */
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Modal - Glassmorphism */
 .modal {
-  background: var(--bg-secondary);
-  border-radius: 12px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
   width: 90%;
   max-width: 320px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border-color);
-  animation: modalIn 0.2s ease;
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-color);
+  animation: modalIn 0.3s var(--transition-normal);
 }
 
 @keyframes modalIn {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.9) translateY(20px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
@@ -427,178 +485,88 @@ html, body {
 }
 
 .btn-save {
-  background: var(--accent-color);
+  background: linear-gradient(135deg, var(--accent-color), #1a73e8);
   color: white;
+  box-shadow: 0 4px 12px var(--accent-glow);
 }
 
 .btn-save:hover {
-  background: #3a8eef;
+  background: linear-gradient(135deg, #5aabff, #2a83f8);
+  box-shadow: 0 6px 20px var(--accent-glow);
+  transform: translateY(-1px);
 }
 
-/* Context Menu for Delete */
+.btn-save:active {
+  transform: translateY(0);
+}
+
+/* Context Menu - Glassmorphism */
 .context-menu {
   position: fixed;
-  background: var(--bg-secondary);
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 4px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: var(--shadow-lg);
   z-index: 3000;
-  min-width: 120px;
+  min-width: 140px;
+  animation: contextIn 0.15s ease;
+}
+
+@keyframes contextIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .context-menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
   color: var(--text-primary);
-  transition: background 0.15s;
+  transition: all var(--transition-fast);
 }
 
 .context-menu-item:hover {
   background: var(--hover-bg);
+  transform: translateX(2px);
 }
 
 .context-menu-item.danger {
-  color: #ef4444;
+  color: #f87171;
 }
 
 .context-menu-item.danger:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(248, 113, 113, 0.15);
 }
 
-/* ===================
-   IFRAME TOOLBAR
-   =================== */
-
-.iframe-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  background: var(--bg-icon-bar);
-  border-bottom: 1px solid var(--border-color);
-  min-height: 36px;
-}
-
-.iframe-toolbar.hidden {
-  display: none;
-}
-
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Loading Indicator */
-.loading-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.loading-indicator.show {
-  opacity: 1;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--border-color);
-  border-top-color: var(--accent-color);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Toolbar Buttons */
-.toolbar-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 16px;
-  position: relative;
-}
-
-.toolbar-btn:hover {
-  background: var(--hover-bg);
-  color: var(--accent-color);
-}
-
-.toolbar-btn:active {
-  transform: scale(0.95);
-}
-
-/* Toolbar Button Tooltip */
-.toolbar-btn::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s ease;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-color);
-  pointer-events: none;
-}
-
-.toolbar-btn:hover::after {
-  opacity: 1;
-  visibility: visible;
-}
 
 /* ===================
    IMPORT/EXPORT BUTTONS
    =================== */
 
 .utility-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-secondary);
   font-size: 14px;
   flex-shrink: 0;
@@ -607,36 +575,46 @@ html, body {
 
 .utility-btn:hover {
   background: var(--hover-bg);
+  border-color: var(--border-color);
   color: var(--accent-color);
-  transform: scale(1.08);
+  transform: scale(1.12) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.15);
+}
+
+.utility-btn:active {
+  transform: scale(1.05);
 }
 
 /* Utility Button Tooltip */
 .utility-btn::after {
   content: attr(data-tooltip);
   position: fixed;
-  left: calc(var(--icon-bar-width) + 8px);
-  background: var(--bg-secondary);
+  left: calc(var(--icon-bar-width) + 10px);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text-primary);
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transform: translateX(-8px);
+  transition: all var(--transition-fast);
   z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color);
   pointer-events: none;
 }
 
 .utility-btn:hover::after {
   opacity: 1;
   visibility: visible;
+  transform: translateX(0);
 }
 
-/* Web Panel with toolbar adjustment */
+/* Web Panel */
 .web-panel iframe {
   width: 100%;
   height: 100%;
@@ -644,6 +622,211 @@ html, body {
   background: #fff;
 }
 
-.web-panel.has-toolbar iframe {
-  height: calc(100% - 36px);
+/* ===================
+   IFRAME WRAPPER
+   =================== */
+
+.iframe-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.iframe-wrapper iframe {
+  width: 100%;
+  height: 100%;
+}
+
+
+/* ===================
+   DRAG AND DROP - Enhanced
+   =================== */
+
+.icon-btn[draggable="true"] {
+  cursor: grab;
+}
+
+.icon-btn[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.icon-btn.dragging {
+  opacity: 0.35;
+  transform: scale(0.9) rotate(2deg);
+  background: var(--hover-bg);
+  filter: blur(1px);
+  transition: all 0.1s ease;
+}
+
+/* Prevent child elements from interfering with drag */
+.icon-btn img,
+.icon-btn .letter-icon {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.icon-btn.drag-over {
+  background: var(--hover-bg);
+  transform: scale(1.05);
+}
+
+.icon-btn.drag-over-top {
+  position: relative;
+}
+
+.icon-btn.drag-over-top::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 2px;
+  right: 2px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+  border-radius: 3px;
+  box-shadow: 0 0 12px var(--accent-glow), 0 0 4px var(--accent-color);
+  animation: drop-indicator-glow 1s ease-in-out infinite;
+}
+
+.icon-btn.drag-over-bottom {
+  position: relative;
+}
+
+.icon-btn.drag-over-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 2px;
+  right: 2px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+  border-radius: 3px;
+  box-shadow: 0 0 12px var(--accent-glow), 0 0 4px var(--accent-color);
+  animation: drop-indicator-glow 1s ease-in-out infinite;
+}
+
+/* Override the tooltip for drag-over states */
+.icon-btn.drag-over-top::after,
+.icon-btn.drag-over-bottom::before {
+  /* Keep the indicator, hide tooltip during drag */
+}
+
+.icon-btn.dragging::after {
+  display: none !important;
+}
+
+@keyframes drop-indicator-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 12px var(--accent-glow), 0 0 4px var(--accent-color);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 20px var(--accent-glow), 0 0 8px var(--accent-color);
+  }
+}
+
+.drop-indicator {
+  width: 28px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+  border-radius: 3px;
+  margin: 2px auto;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* ===================
+   AUTO-HIBERNATE OVERLAY
+   =================== */
+
+.hibernate-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, #0a0a14 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.4s ease;
+}
+
+.hibernate-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.hibernate-content {
+  text-align: center;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.hibernate-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  filter: grayscale(20%);
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.hibernate-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.hibernate-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.hibernate-wake-btn {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+}
+
+.hibernate-wake-btn:hover {
+  background: #3a8eef;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(74, 158, 255, 0.4);
+}
+
+.hibernate-wake-btn:active {
+  transform: translateY(0);
 }

@@ -15,25 +15,10 @@
     
     <!-- Web Panel (iframe container) -->
     <main class="web-panel">
-      <!-- Toolbar for iframe controls -->
-      <div class="iframe-toolbar hidden" id="iframeToolbar">
-        <div class="toolbar-left">
-          <div class="loading-indicator" id="loadingIndicator">
-            <div class="spinner"></div>
-            <span>جاري التحميل...</span>
-          </div>
-        </div>
-        <div class="toolbar-right">
-          <button class="toolbar-btn" id="btnRefresh" data-tooltip="تحديث">
-            <span>↻</span>
-          </button>
-          <button class="toolbar-btn" id="btnOpenTab" data-tooltip="فتح في تاب جديد">
-            <span>↗</span>
-          </button>
-        </div>
+      <!-- Iframe wrapper for responsive views -->
+      <div class="iframe-wrapper" id="iframeWrapper">
+        <iframe id="webFrame" src="about:blank"></iframe>
       </div>
-      
-      <iframe id="webFrame" src="about:blank"></iframe>
       
       <!-- Welcome message shown when no site is selected -->
       <div class="welcome" id="welcome">
