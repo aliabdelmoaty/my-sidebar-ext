@@ -1,0 +1,19 @@
+{
+  "manifest_version": 2,
+  "name": "My Custom Sidebar",
+  "version": "1.0",
+  "description": "A sidebar extension with quick access to your favorite sites",
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "storage",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "sidebar_action": {
+    "default_title": "My Sites",
+    "default_panel": "sidebar.html"
+  }
+}
