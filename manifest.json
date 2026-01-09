@@ -1,7 +1,7 @@
 {
     "manifest_version": 2,
     "name": "My Custom Sidebar",
-    "version": "1.1",
+    "version": "1.2",
     "description": "A sidebar extension with quick access to your favorite sites",
     "browser_specific_settings": {
         "gecko": {
