@@ -7,50 +7,7 @@
 
 // Default sites (used on first install)
 // All sites use automatic favicon fetching
-const DEFAULT_SITES = [
-  {
-    id: 'chatgpt',
-    name: 'ChatGPT',
-    url: 'https://chat.openai.com',
-    color: '#10a37f'
-  },
-  {
-    id: 'youtube',
-    name: 'YouTube',
-    url: 'https://www.youtube.com',
-    color: '#FF0000'
-  },
-  {
-    id: 'whatsapp',
-    name: 'WhatsApp',
-    url: 'https://web.whatsapp.com',
-    color: '#25D366'
-  },
-  {
-    id: 'github',
-    name: 'GitHub',
-    url: 'https://github.com',
-    color: '#24292e'
-  },
-  {
-    id: 'translate',
-    name: 'Google Translate',
-    url: 'https://translate.google.com',
-    color: '#4285F4'
-  },
-  {
-    id: 'claude',
-    name: 'Claude',
-    url: 'https://claude.ai',
-    color: '#D4A574'
-  },
-  {
-    id: 'gemini',
-    name: 'Gemini',
-    url: 'https://gemini.google.com',
-    color: '#1a73e8'
-  }
-];
+const DEFAULT_SITES = [];
 
 // ===================
 // FAVICON CACHE SYSTEM
@@ -130,46 +87,49 @@ function cacheFavicon(domain, dataUrl) {
 }
 
 /**
- * Fetch favicon and convert to base64 data URL
+ * Fetch favicon using Google's Favicon Service with full URL
+ * This ensures we get the exact favicon for the specific page/service
  */
-async function fetchAndCacheFavicon(domain) {
-  // Multiple sources for high quality favicons (in order of preference)
-  const sources = [
-    // DuckDuckGo - usually highest quality
-    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-    // Google with large size
-    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-    // Favicon.io - another good source
-    `https://favicon.io/favicon/${domain}`,
-    // Direct favicon from site
-    `https://${domain}/favicon.ico`,
-    `https://${domain}/apple-touch-icon.png`,
-    `https://${domain}/apple-touch-icon-precomposed.png`
-  ];
-  
-  for (const url of sources) {
+function fetchAndCacheFavicon(cacheKey, fullUrl) {
+  return new Promise((resolve) => {
     try {
-      const response = await fetch(url);
-      if (!response.ok) continue;
+      // Use Google's favicon service with the FULL URL (not just domain)
+      // This gives us the correct favicon for services like Google Translate, Notebook LM, etc.
+      const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(fullUrl)}&sz=128`;
       
-      const blob = await response.blob();
+      const xhr = new XMLHttpRequest();
+      xhr.responseType = 'blob';
+      xhr.timeout = 10000;
       
-      // Skip if too small (probably a placeholder)
-      if (blob.size < 100) continue;
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          const blob = xhr.response;
+          
+          // Check if it's a valid image (not too small)
+          if (blob.size > 50) {
+            blobToDataUrl(blob).then((dataUrl) => {
+              // Cache it
+              cacheFavicon(cacheKey, dataUrl).then(() => {
+                resolve(dataUrl);
+              });
+            }).catch(() => {
+              resolve(null);
+            });
+          } else {
+            resolve(null);
+          }
+        } else {
+          resolve(null);
+        }
+      };
       
-      // Convert to base64 data URL
-      const dataUrl = await blobToDataUrl(blob);
-      
-      // Cache it
-      await cacheFavicon(domain, dataUrl);
-      
-      return dataUrl;
+      xhr.onerror = xhr.ontimeout = () => resolve(null);
+      xhr.open('GET', faviconUrl, true);
+      xhr.send();
     } catch (e) {
-      continue; // Try next source
+      resolve(null);
     }
-  }
-  
-  return null; // All sources failed
+  });
 }
 
 /**
@@ -186,24 +146,29 @@ function blobToDataUrl(blob) {
 
 /**
  * Get favicon URL (from cache or fetch)
+ * Uses the full URL as cache key to ensure each service gets its own favicon
  */
-async function getFavicon(siteUrl) {
-  try {
-    const url = new URL(siteUrl);
-    const domain = url.hostname;
-    
-    // Try cache first
-    const cached = await getCachedFavicon(domain);
-    if (cached) {
-      return cached;
+function getFavicon(siteUrl) {
+  return new Promise((resolve) => {
+    try {
+      // Use full URL as cache key (not just domain)
+      // This ensures Google Translate, Notebook LM, etc. each get their own favicon
+      const cacheKey = siteUrl;
+      
+      // Try cache first
+      getCachedFavicon(cacheKey).then((cached) => {
+        if (cached) {
+          resolve(cached);
+          return;
+        }
+        
+        // Fetch and cache with full URL
+        fetchAndCacheFavicon(cacheKey, siteUrl).then(resolve);
+      });
+    } catch (e) {
+      resolve(null);
     }
-    
-    // Fetch and cache
-    const dataUrl = await fetchAndCacheFavicon(domain);
-    return dataUrl;
-  } catch (e) {
-    return null;
-  }
+  });
 }
 
 // ===================
@@ -367,7 +332,7 @@ function createLetterIcon(name, color) {
 function createAddButton() {
   const button = document.createElement('button');
   button.className = 'add-btn';
-  button.innerHTML = '+';
+  button.textContent = '+';
   button.setAttribute('data-tooltip', 'إضافة موقع');
   button.addEventListener('click', openModal);
   return button;
@@ -681,14 +646,31 @@ function showHibernateOverlay() {
     overlay = document.createElement('div');
     overlay.id = 'hibernateOverlay';
     overlay.className = 'hibernate-overlay';
-    overlay.innerHTML = `
-      <div class="hibernate-content">
-        <div class="hibernate-icon">💤</div>
-        <p class="hibernate-title">في وضع السكون</p>
-        <p class="hibernate-subtitle">لتوفير الذاكرة</p>
-        <button class="hibernate-wake-btn">اضغط للتنشيط</button>
-      </div>
-    `;
+    
+    const content = document.createElement('div');
+    content.className = 'hibernate-content';
+    
+    const icon = document.createElement('div');
+    icon.className = 'hibernate-icon';
+    icon.textContent = '💤';
+    
+    const title = document.createElement('p');
+    title.className = 'hibernate-title';
+    title.textContent = 'في وضع السكون';
+    
+    const subtitle = document.createElement('p');
+    subtitle.className = 'hibernate-subtitle';
+    subtitle.textContent = 'لتوفير الذاكرة';
+    
+    const wakeBtn = document.createElement('button');
+    wakeBtn.className = 'hibernate-wake-btn';
+    wakeBtn.textContent = 'اضغط للتنشيط';
+    
+    content.appendChild(icon);
+    content.appendChild(title);
+    content.appendChild(subtitle);
+    content.appendChild(wakeBtn);
+    overlay.appendChild(content);
     
     // Wake on click
     overlay.addEventListener('click', () => {
@@ -826,7 +808,9 @@ async function handleFileImport(event) {
  */
 function renderIcons() {
   // Clear icon bar
-  iconBar.innerHTML = '';
+  while (iconBar.firstChild) {
+    iconBar.removeChild(iconBar.firstChild);
+  }
   
   // Add site icons
   sites.forEach((site, index) => {
@@ -862,7 +846,7 @@ function renderIcons() {
 function createUtilityButton(icon, tooltip, onClick) {
   const button = document.createElement('button');
   button.className = 'utility-btn';
-  button.innerHTML = icon;
+  button.textContent = icon;
   button.setAttribute('data-tooltip', tooltip);
   button.addEventListener('click', onClick);
   return button;
@@ -966,28 +950,43 @@ function showContextMenu(e, site) {
   
   contextMenu = document.createElement('div');
   contextMenu.className = 'context-menu';
-  contextMenu.innerHTML = `
-    <div class="context-menu-item" data-action="edit">
-      <span>✏️</span>
-      <span>تعديل</span>
-    </div>
-    <div class="context-menu-item danger" data-action="delete">
-      <span>🗑️</span>
-      <span>حذف</span>
-    </div>
-  `;
+  
+  // Create edit item
+  const editItem = document.createElement('div');
+  editItem.className = 'context-menu-item';
+  editItem.setAttribute('data-action', 'edit');
+  const editIcon = document.createElement('span');
+  editIcon.textContent = '✏️';
+  const editText = document.createElement('span');
+  editText.textContent = 'تعديل';
+  editItem.appendChild(editIcon);
+  editItem.appendChild(editText);
+  
+  // Create delete item
+  const deleteItem = document.createElement('div');
+  deleteItem.className = 'context-menu-item danger';
+  deleteItem.setAttribute('data-action', 'delete');
+  const deleteIcon = document.createElement('span');
+  deleteIcon.textContent = '🗑️';
+  const deleteText = document.createElement('span');
+  deleteText.textContent = 'حذف';
+  deleteItem.appendChild(deleteIcon);
+  deleteItem.appendChild(deleteText);
+  
+  contextMenu.appendChild(editItem);
+  contextMenu.appendChild(deleteItem);
   
   contextMenu.style.left = e.clientX + 'px';
   contextMenu.style.top = e.clientY + 'px';
   
   // Handle edit
-  contextMenu.querySelector('[data-action="edit"]').addEventListener('click', () => {
+  editItem.addEventListener('click', () => {
     hideContextMenu();
     openEditModal(site);
   });
   
   // Handle delete
-  contextMenu.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+  deleteItem.addEventListener('click', async () => {
     sites = sites.filter(s => s.id !== site.id);
     await saveSites();
     renderIcons();
